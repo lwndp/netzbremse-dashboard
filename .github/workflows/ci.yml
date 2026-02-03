@@ -64,10 +64,10 @@ jobs:
         run: uv pip install ruff black isort
 
       - name: Run black formatter
-        run: black app/
+        run: uv run black app/
 
       - name: Run isort
-        run: isort app/
+        run: uv run isort app/
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
