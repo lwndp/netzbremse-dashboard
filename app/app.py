@@ -368,6 +368,11 @@ else:
     with col2:
         st.altair_chart(longterm_endpoint_chart, use_container_width=True)
 
+st.caption(
+    "The left chart shows the median with an interquartile band. "
+    "The right chart shows each endpoint as its own line."
+)
+
 # Section 2: 24-Hour Summary
 st.markdown("---")
 st.subheader(f"🕐 24-Hour Performance Pattern: {metric_name}")
@@ -393,6 +398,11 @@ else:
         st.altair_chart(h24_median_chart, use_container_width=True)
     with col2:
         st.altair_chart(h24_endpoint_chart, use_container_width=True)
+
+    st.caption(
+        "Use this to compare performance by time-of-day. "
+        "The right chart shows each endpoint as its own line."
+    )
 
     # Show warning if not all 24 hours have data
     if missing_hours > 0:
