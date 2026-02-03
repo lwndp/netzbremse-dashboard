@@ -350,10 +350,10 @@ def aggregate_to_intervals(
     df: pd.DataFrame, interval_minutes: int = 10
 ) -> pd.DataFrame:
     """
-    Aggregate measurements into time intervals.
+    Aggregate measurements into time intervals, preserving endpoint information.
 
     Each measurement run produces ~5 data points. This function groups them
-    by the specified interval and calculates the mean for each metric.
+    by the specified interval and endpoint, calculating the mean for each metric.
     """
     if df.empty:
         logger.debug("Aggregation skipped: empty DataFrame")
@@ -364,9 +364,18 @@ def aggregate_to_intervals(
     df["interval"] = df["timestamp"].dt.floor(f"{interval_minutes}min")
 
     metric_cols = [col for col in df.columns if col in METRICS]
-    agg_dict = {col: "mean" for col in metric_cols}
-    agg_df = df.groupby("interval").agg(agg_dict).reset_index()
-    agg_df = agg_df.rename(columns={"interval": "timestamp"})
+
+    # Check if endpoint column exists
+    if "endpoint" in df.columns:
+        # Group by both interval and endpoint to preserve endpoint info
+        agg_dict = {col: "mean" for col in metric_cols}
+        agg_df = df.groupby(["interval", "endpoint"]).agg(agg_dict).reset_index()
+        agg_df = agg_df.rename(columns={"interval": "timestamp"})
+    else:
+        # Fallback: group only by interval
+        agg_dict = {col: "mean" for col in metric_cols}
+        agg_df = df.groupby("interval").agg(agg_dict).reset_index()
+        agg_df = agg_df.rename(columns={"interval": "timestamp"})
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     logger.debug(

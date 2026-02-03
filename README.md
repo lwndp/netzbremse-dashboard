@@ -1,7 +1,5 @@
 # Netzbremse Dashboard
 
-> ℹ️ WIP: The visualizations will receive an update soon to become even more useful and descriptive. Stay tuned!
-
 This project complements the [Netzbremse Measurement Project](https://github.com/AKVorrat/netzbremse-measurement), which periodically tests your internet speed through different routes to collect data on Telekom's peering. With this dashboard you can neatly visualize the data, identify trends, and track the performance of your connection across time.
 
 In principle, this app runs in a separate container and only maps the output directory of netzbremse-measurement as its input, therefore sharing only a volume. Besides,
