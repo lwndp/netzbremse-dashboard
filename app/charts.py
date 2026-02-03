@@ -8,18 +8,18 @@ import pandas as pd
 # Brand color matching netzbremse.de
 BRAND_COLOR = "#e91e63"
 
-# Magenta color palette for endpoints (nuances from light to dark)
-MAGENTA_PALETTE = [
-    "#f8bbd9",  # Light pink
-    "#f48fb1",  # Pink
-    "#f06292",  # Medium pink
-    "#ec407a",  # Magenta pink
-    "#e91e63",  # Brand magenta
-    "#d81b60",  # Dark magenta
-    "#c2185b",  # Darker magenta
-    "#ad1457",  # Deep magenta
-    "#880e4f",  # Very dark magenta
-    "#6a1b4d",  # Darkest
+# Distinct endpoint palette (high-contrast, magenta-forward)
+ENDPOINT_PALETTE = [
+    "#e91e63",  # Magenta
+    "#9c27b0",  # Purple
+    "#3f51b5",  # Indigo
+    "#2196f3",  # Blue
+    "#009688",  # Teal
+    "#4caf50",  # Green
+    "#ff9800",  # Orange
+    "#ff5722",  # Deep Orange
+    "#795548",  # Brown
+    "#607d8b",  # Blue Grey
 ]
 
 
@@ -42,11 +42,13 @@ def _shorten_endpoint(url: str) -> str:
 def _get_endpoint_color_scale(endpoints: list[str]) -> alt.Scale:
     """Create a color scale for endpoints using magenta nuances."""
     n_endpoints = len(endpoints)
-    if n_endpoints <= len(MAGENTA_PALETTE):
-        colors = MAGENTA_PALETTE[:n_endpoints]
+    if n_endpoints <= len(ENDPOINT_PALETTE):
+        colors = ENDPOINT_PALETTE[:n_endpoints]
     else:
         # Cycle through palette if more endpoints than colors
-        colors = [MAGENTA_PALETTE[i % len(MAGENTA_PALETTE)] for i in range(n_endpoints)]
+        colors = [
+            ENDPOINT_PALETTE[i % len(ENDPOINT_PALETTE)] for i in range(n_endpoints)
+        ]
     return alt.Scale(domain=endpoints, range=colors)
 
 
@@ -112,7 +114,8 @@ def create_median_band_chart(
         alt.Chart(stats_df)
         .mark_line(
             color=BRAND_COLOR,
-            strokeWidth=2.5,
+            strokeWidth=1.8,
+            interpolate="catmull-rom",
         )
         .encode(
             x=alt.X("timestamp:T", title=x_title),
@@ -171,11 +174,13 @@ def create_endpoint_lines_chart(
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
 
+    highlight = alt.selection_point(fields=["endpoint"], on="mouseover")
+
     # Create lines for each endpoint
     lines = (
         alt.Chart(grouped_df)
         .mark_line(
-            strokeWidth=2,
+            strokeWidth=1.2,
         )
         .encode(
             x=alt.X(
@@ -192,28 +197,18 @@ def create_endpoint_lines_chart(
                 scale=color_scale,
                 legend=alt.Legend(title="Endpoint", orient="top"),
             ),
+            opacity=alt.condition(highlight, alt.value(1.0), alt.value(0.25)),
+            strokeWidth=alt.condition(highlight, alt.value(2.2), alt.value(1.2)),
             tooltip=[
                 alt.Tooltip("timestamp:T", title="Time", format=time_format),
                 alt.Tooltip("endpoint:N", title="Endpoint"),
                 alt.Tooltip(f"{metric_key}:Q", title=metric_name, format=".2f"),
             ],
         )
+        .add_params(highlight)
     )
 
-    # Add points
-    points = (
-        alt.Chart(grouped_df)
-        .mark_circle(
-            size=25,
-        )
-        .encode(
-            x=alt.X("timestamp:T"),
-            y=alt.Y(f"{metric_key}:Q"),
-            color=alt.Color("endpoint:N", scale=color_scale, legend=None),
-        )
-    )
-
-    return (lines + points).properties(
+    return lines.properties(
         height=height,
         title=f"{metric_name} by Endpoint",
     )
@@ -283,7 +278,8 @@ def create_24h_median_band_chart(
         alt.Chart(stats_df)
         .mark_line(
             color=BRAND_COLOR,
-            strokeWidth=2.5,
+            strokeWidth=1.8,
+            interpolate="catmull-rom",
         )
         .encode(
             x=alt.X("hour:O", title="Hour of Day"),
@@ -344,11 +340,13 @@ def create_24h_endpoint_lines_chart(
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
 
+    highlight = alt.selection_point(fields=["endpoint"], on="mouseover")
+
     # Create lines for each endpoint
     lines = (
         alt.Chart(grouped_df)
         .mark_line(
-            strokeWidth=2,
+            strokeWidth=1.2,
         )
         .encode(
             x=alt.X(
@@ -365,28 +363,18 @@ def create_24h_endpoint_lines_chart(
                 scale=color_scale,
                 legend=alt.Legend(title="Endpoint", orient="top"),
             ),
+            opacity=alt.condition(highlight, alt.value(1.0), alt.value(0.25)),
+            strokeWidth=alt.condition(highlight, alt.value(2.2), alt.value(1.2)),
             tooltip=[
                 alt.Tooltip("hour:O", title="Hour"),
                 alt.Tooltip("endpoint:N", title="Endpoint"),
                 alt.Tooltip(f"{metric_key}:Q", title=metric_name, format=".2f"),
             ],
         )
+        .add_params(highlight)
     )
 
-    # Add points
-    points = (
-        alt.Chart(grouped_df)
-        .mark_circle(
-            size=35,
-        )
-        .encode(
-            x=alt.X("hour:O"),
-            y=alt.Y(f"{metric_key}:Q"),
-            color=alt.Color("endpoint:N", scale=color_scale, legend=None),
-        )
-    )
-
-    return (lines + points).properties(
+    return lines.properties(
         height=height,
         title=f"{metric_name} by Endpoint - 24h Summary",
     )
