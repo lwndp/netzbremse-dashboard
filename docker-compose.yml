@@ -2,7 +2,16 @@ services:
   netzbremse-dashboard:
     build:
       context: .
-    image: ghcr.io/lwndp/netzbremse-dashboard:latest
+      # Optional custom build settings (uncomment and set as needed)
+      # platforms:
+      #   - ${PLATFORM}
+      args:
+        VERSION: ${IMAGE_TAG:-latest}
+        VCS_REF: ${GIT_SHA:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-}
+    image: ghcr.io/lwndp/netzbremse-dashboard:${IMAGE_TAG:-latest}
+    # Optional custom runtime setting (uncomment and set as needed)
+    # platform: ${PLATFORM}
     container_name: netzbremse-dashboard
     restart: unless-stopped
     environment:

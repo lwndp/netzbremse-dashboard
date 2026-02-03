@@ -1,5 +1,17 @@
 FROM python:3.12-slim-bookworm
 
+ARG VERSION=latest
+ARG VCS_REF=unknown
+ARG BUILD_DATE=
+
+LABEL org.opencontainers.image.title="netzbremse-dashboard" \
+    org.opencontainers.image.description="Streamlit dashboard for Netzbremse speedtest results" \
+    org.opencontainers.image.url="https://github.com/lwndp/netzbremse-dashboard" \
+    org.opencontainers.image.source="https://github.com/lwndp/netzbremse-dashboard" \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.revision="${VCS_REF}" \
+    org.opencontainers.image.created="${BUILD_DATE}"
+
 WORKDIR /app
 
 # Install uv only (no curl/ca-certs bloat) — use system curl via APK equivalent
