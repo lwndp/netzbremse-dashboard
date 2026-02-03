@@ -9,11 +9,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import streamlit as st
-from charts import create_metric_line_chart
-from components import (
-    render_header,
-    render_latest_summary,
-)
+from charts import render_24h_section, render_longterm_section
+from components import render_header, render_latest_summary
 from data_loader import (
     DATA_DIR,
     METRICS,
@@ -38,8 +35,11 @@ if not logger.handlers:
 # Number of recent measurements to show
 RECENT_COUNT = 5
 
-# Default metrics to display
-DEFAULT_METRICS = ["download", "upload", "latency", "jitter"]
+# Default date range: past 3 days
+DEFAULT_DATE_RANGE_DAYS = 3
+
+# KPI options for the dropdown
+KPI_OPTIONS = {key: f"{info['name']} ({info['unit']})" for key, info in METRICS.items()}
 
 # Page configuration
 st.set_page_config(
@@ -139,59 +139,132 @@ if not df.empty:
 # Date range selector - First option in sidebar
 if not df.empty:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Date Range Filter")
-    min_date = df["timestamp"].min().date()
-    max_date = df["timestamp"].max().date()
+    st.sidebar.subheader("Chart Controls")
 
-    # Versioned key pattern: changing the key forces a fresh widget instance
-    date_filter_key = f"date_range_filter_v{st.session_state.get('_date_filter_v', 0)}"
+    # Calculate data range bounds
+    min_datetime = df["timestamp"].min()
+    max_datetime = df["timestamp"].max()
 
-    date_range = st.sidebar.date_input(
-        "Select date range",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date,
-        help="Filter data by date range",
-        key=date_filter_key,
+    # Default to past 3 days or data range if less
+    default_start = max(
+        min_datetime,
+        max_datetime - timedelta(days=DEFAULT_DATE_RANGE_DAYS),
     )
 
-    # Apply date filter if range is selected
-    if isinstance(date_range, tuple) and len(date_range) == 2:
-        start_date, end_date = date_range
-        original_count = len(df)
-        df = df[
-            (df["timestamp"].dt.date >= start_date)
-            & (df["timestamp"].dt.date <= end_date)
-        ]
-        logger.debug(
-            "Date filter applied: %s to %s (%d -> %d records)",
-            start_date,
-            end_date,
-            original_count,
-            len(df),
+    # Initialize session state for applied controls (only on first run)
+    if "applied_kpi" not in st.session_state:
+        st.session_state.applied_kpi = "download"
+        st.session_state.applied_start_date = default_start.date()
+        st.session_state.applied_start_time = default_start.time().replace(
+            second=0, microsecond=0
         )
-        st.sidebar.caption(f"Filtered to {len(df)} measurements")
+        st.session_state.applied_end_date = max_datetime.date()
+        st.session_state.applied_end_time = max_datetime.time().replace(
+            second=0, microsecond=0
+        )
 
-    def reset_date_filter():
-        """Increment version to force new widget, clean up old key."""
-        logger.info("Date range reset by user")
-        old_version = st.session_state.get("_date_filter_v", 0)
-        st.session_state["_date_filter_v"] = old_version + 1
-        # Clean up old key to avoid accumulation
-        old_key = f"date_range_filter_v{old_version}"
-        if old_key in st.session_state:
-            del st.session_state[old_key]
+    # KPI Selector
+    selected_kpi = st.sidebar.selectbox(
+        "Select KPI",
+        options=list(KPI_OPTIONS.keys()),
+        format_func=lambda x: KPI_OPTIONS[x],
+        index=list(KPI_OPTIONS.keys()).index(st.session_state.applied_kpi),
+        help="Choose the metric to display in all charts",
+        key="input_kpi",
+    )
 
-    st.sidebar.button("Reset Date Range", on_click=reset_date_filter)
+    # Date-time range for charts
+    st.sidebar.markdown("##### Date-Time Range")
 
-    # Chart settings
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Chart Settings")
-    aggregate_data = st.sidebar.checkbox(
-        "Group by measurement run",
-        value=True,
-        help="Each run produces 5 data points. Enable to average them into single"
-        " points. Makes cleaner charts.",
+    # Date-time picker using columns
+    col_start, col_end = st.sidebar.columns(2)
+    with col_start:
+        start_date = st.date_input(
+            "Start Date",
+            value=st.session_state.applied_start_date,
+            min_value=min_datetime.date(),
+            max_value=max_datetime.date(),
+            key="input_start_date",
+        )
+        start_time = st.time_input(
+            "Start Time",
+            value=st.session_state.applied_start_time,
+            key="input_start_time",
+        )
+    with col_end:
+        end_date = st.date_input(
+            "End Date",
+            value=st.session_state.applied_end_date,
+            min_value=min_datetime.date(),
+            max_value=max_datetime.date(),
+            key="input_end_date",
+        )
+        end_time = st.time_input(
+            "End Time",
+            value=st.session_state.applied_end_time,
+            key="input_end_time",
+        )
+
+    # Combine input date and time into datetime objects for validation
+    input_start_datetime = datetime.combine(
+        start_date, start_time, tzinfo=DISPLAY_TIMEZONE
+    )
+    input_end_datetime = datetime.combine(end_date, end_time, tzinfo=DISPLAY_TIMEZONE)
+
+    # Clamp datetime values to available data range
+    min_dt_tz = min_datetime.replace(tzinfo=DISPLAY_TIMEZONE)
+    max_dt_tz = max_datetime.replace(tzinfo=DISPLAY_TIMEZONE)
+    clamped_start = max(input_start_datetime, min_dt_tz)
+    clamped_end = min(input_end_datetime, max_dt_tz)
+
+    # Validation: only check if start is before end (after clamping)
+    validation_error = None
+    if clamped_start >= clamped_end:
+        validation_error = "Start date/time must be before end date/time."
+
+    # Show validation error if any
+    if validation_error:
+        st.sidebar.error(f"⚠️ {validation_error}")
+
+    # Apply button
+    apply_disabled = validation_error is not None
+    if st.sidebar.button(
+        "Update Charts",
+        type="primary",
+        disabled=apply_disabled,
+        use_container_width=True,
+    ):
+        # Store clamped values in session state
+        st.session_state.applied_kpi = selected_kpi
+        st.session_state.applied_start_date = clamped_start.date()
+        st.session_state.applied_start_time = clamped_start.time()
+        st.session_state.applied_end_date = clamped_end.date()
+        st.session_state.applied_end_time = clamped_end.time()
+        st.rerun()
+
+    # Use applied values for charts (not the input values)
+    chart_start_datetime = datetime.combine(
+        st.session_state.applied_start_date,
+        st.session_state.applied_start_time,
+        tzinfo=DISPLAY_TIMEZONE,
+    )
+    chart_end_datetime = datetime.combine(
+        st.session_state.applied_end_date,
+        st.session_state.applied_end_time,
+        tzinfo=DISPLAY_TIMEZONE,
+    )
+    applied_kpi = st.session_state.applied_kpi
+
+    # Filter data for charts using applied values
+    chart_df = df[
+        (df["timestamp"] >= chart_start_datetime)
+        & (df["timestamp"] <= chart_end_datetime)
+    ].copy()
+
+    st.sidebar.caption(
+        f"Showing {len(chart_df)} measurements from "
+        f"{chart_start_datetime.strftime('%b %d %H:%M')} to "
+        f"{chart_end_datetime.strftime('%b %d %H:%M')}"
     )
 
 # Refresh info
@@ -257,48 +330,78 @@ if df.empty:
 # Get latest measurements for summary (raw data, most recent first)
 latest_df = get_latest_measurements(df, RECENT_COUNT)
 
-# Prepare chart data (optionally aggregated)
-chart_df = aggregate_to_intervals(df, interval_minutes=10) if aggregate_data else df
+# Prepare chart data (always aggregated by measurement run)
+aggregated_chart_df = aggregate_to_intervals(chart_df, interval_minutes=10)
 
 # Summary section
 st.markdown("---")
 render_latest_summary(latest_df)
 
-# Charts section
+# Get metric info for applied KPI
+metric_info = METRICS[applied_kpi]
+metric_name = metric_info["name"]
+metric_unit = metric_info["unit"]
+
+# Section 1: Long-term Performance Overview
 st.markdown("---")
-st.subheader("Performance Over Time")
+st.subheader(f"📈 Long-term Performance: {metric_name}")
+st.caption(
+    f"Showing data from {chart_start_datetime.strftime('%b %d, %Y %H:%M')} to "
+    f"{chart_end_datetime.strftime('%b %d, %Y %H:%M')}"
+)
 
-# Individual charts in tabs
-tabs = st.tabs([METRICS[m]["name"] for m in DEFAULT_METRICS])
+if aggregated_chart_df.empty:
+    st.warning("No data available for the selected date range.")
+else:
+    # Render long-term section charts
+    longterm_median_chart, longterm_endpoint_chart = render_longterm_section(
+        df=aggregated_chart_df,
+        metric_key=applied_kpi,
+        metric_name=metric_name,
+        metric_unit=metric_unit,
+    )
 
-for tab, metric in zip(tabs, DEFAULT_METRICS):
-    with tab:
-        chart = create_metric_line_chart(chart_df, metric)
-        st.altair_chart(chart, width="stretch")
+    # Display in two columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.altair_chart(longterm_median_chart, use_container_width=True)
+    with col2:
+        st.altair_chart(longterm_endpoint_chart, use_container_width=True)
 
-# Combined view - Split into separate charts
+# Section 2: 24-Hour Summary
 st.markdown("---")
-st.subheader("Combined View")
+st.subheader(f"🕐 24-Hour Performance Pattern: {metric_name}")
+st.caption(
+    "Aggregated by hour of day across the selected date range to show "
+    "typical performance patterns throughout the day."
+)
 
-# Separate speed and latency charts
-speed_metrics = [m for m in DEFAULT_METRICS if METRICS[m]["unit"] == "Mbps"]
-latency_metrics = [m for m in DEFAULT_METRICS if METRICS[m]["unit"] == "ms"]
+if aggregated_chart_df.empty:
+    st.warning("No data available for the selected date range.")
+else:
+    # Render 24h section charts
+    h24_median_chart, h24_endpoint_chart, missing_hours = render_24h_section(
+        df=aggregated_chart_df,
+        metric_key=applied_kpi,
+        metric_name=metric_name,
+        metric_unit=metric_unit,
+    )
 
-if speed_metrics:
-    st.markdown("### Speed Metrics")
-    from charts import create_speed_chart
+    # Display in two columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.altair_chart(h24_median_chart, use_container_width=True)
+    with col2:
+        st.altair_chart(h24_endpoint_chart, use_container_width=True)
 
-    speed_chart = create_speed_chart(chart_df, speed_metrics)
-    if speed_chart:
-        st.altair_chart(speed_chart, width="stretch")
-
-if latency_metrics:
-    st.markdown("### Latency Metrics")
-    from charts import create_latency_chart
-
-    latency_chart = create_latency_chart(chart_df, latency_metrics)
-    if latency_chart:
-        st.altair_chart(latency_chart, width="stretch")
+    # Show warning if not all 24 hours have data
+    if missing_hours > 0:
+        hours_with_data = 24 - missing_hours
+        st.warning(
+            "⚠️ Not enough data available. "
+            "Select a wider date range or wait for more"
+            "data to achieve complete 24-hour coverage."
+        )
 
 st.markdown("---")
 st.caption("All timestamps are displayed in Europe/Berlin timezone (CET/CEST).")
