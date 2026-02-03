@@ -232,7 +232,7 @@ if not df.empty:
         "Update Charts",
         type="primary",
         disabled=apply_disabled,
-        use_container_width=True,
+        width="stretch",
     ):
         # Store clamped values in session state
         st.session_state.applied_kpi = selected_kpi
@@ -364,9 +364,9 @@ else:
     # Display in two columns
     col1, col2 = st.columns(2)
     with col1:
-        st.altair_chart(longterm_median_chart, use_container_width=True)
+        st.altair_chart(longterm_median_chart, width="stretch")
     with col2:
-        st.altair_chart(longterm_endpoint_chart, use_container_width=True)
+        st.altair_chart(longterm_endpoint_chart, width="stretch")
 
 st.caption(
     "The left chart shows the median with an interquartile band. "
@@ -395,9 +395,9 @@ else:
     # Display in two columns
     col1, col2 = st.columns(2)
     with col1:
-        st.altair_chart(h24_median_chart, use_container_width=True)
+        st.altair_chart(h24_median_chart, width="stretch")
     with col2:
-        st.altair_chart(h24_endpoint_chart, use_container_width=True)
+        st.altair_chart(h24_endpoint_chart, width="stretch")
 
     st.caption(
         "Use this to compare performance by time-of-day. "
