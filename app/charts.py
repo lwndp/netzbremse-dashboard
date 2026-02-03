@@ -92,6 +92,7 @@ def create_median_band_chart(
         .mark_area(
             opacity=0.3,
             color=BRAND_COLOR,
+            interpolate="monotone",
         )
         .encode(
             x=alt.X(
@@ -115,7 +116,7 @@ def create_median_band_chart(
         .mark_line(
             color=BRAND_COLOR,
             strokeWidth=1.8,
-            interpolate="catmull-rom",
+            interpolate="monotone",
         )
         .encode(
             x=alt.X("timestamp:T", title=x_title),
@@ -255,6 +256,7 @@ def create_24h_median_band_chart(
         .mark_area(
             opacity=0.3,
             color=BRAND_COLOR,
+            interpolate="monotone",
         )
         .encode(
             x=alt.X(
@@ -279,7 +281,7 @@ def create_24h_median_band_chart(
         .mark_line(
             color=BRAND_COLOR,
             strokeWidth=1.8,
-            interpolate="catmull-rom",
+            interpolate="monotone",
         )
         .encode(
             x=alt.X("hour:O", title="Hour of Day"),
