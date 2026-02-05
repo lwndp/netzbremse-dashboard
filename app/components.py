@@ -9,7 +9,7 @@ def render_header():
     st.markdown("# Netzbremse Speedtest Dashboard")
 
 
-def render_latest_summary(df: pd.DataFrame):
+def render_latest_summary(df: pd.DataFrame, run_size: int = 5):
     """
     Render summary cards for the latest measurement.
 
@@ -19,9 +19,33 @@ def render_latest_summary(df: pd.DataFrame):
         st.warning("No data available yet.")
         return
 
-    # Average the last 5 measurements (one complete test run) for accurate values
-    latest = df.iloc[-5:].mean(numeric_only=True)
-    latest_timestamp = df["timestamp"].max()  # Most recent measurement timestamp
+    df_sorted = df.sort_values("timestamp")
+    run_size = min(max(run_size, 1), len(df_sorted))
+
+    # Average the last complete test run for accurate values
+    latest_run = df_sorted.iloc[-run_size:]
+    latest = latest_run.mean(numeric_only=True)
+    latest_timestamp = latest_run["timestamp"].max()
+
+    # Previous run for percent difference comparison
+    previous_run = (
+        df_sorted.iloc[-(run_size * 2) : -run_size]
+        if len(df_sorted) >= run_size * 2
+        else pd.DataFrame()
+    )
+    previous = (
+        previous_run.mean(numeric_only=True) if not previous_run.empty else pd.Series()
+    )
+
+    def _percent_diff(metric_key: str) -> str | None:
+        if previous.empty:
+            return None
+        prev_value = previous.get(metric_key)
+        latest_value = latest.get(metric_key)
+        if pd.isna(prev_value) or pd.isna(latest_value) or prev_value == 0:
+            return None
+        percent = (latest_value - prev_value) / prev_value * 100
+        return f"{percent:+.1f}%"
 
     st.subheader("Latest Measurement")
     # Format timestamp with timezone name from the timestamp itself
@@ -37,31 +61,36 @@ def render_latest_summary(df: pd.DataFrame):
         st.metric(
             label="Download",
             value=f"{latest.get('download', 0):.2f} Mbps",
+            delta=_percent_diff("download"),
         )
     with col2:
         st.metric(
             label="Upload",
             value=f"{latest.get('upload', 0):.2f} Mbps",
+            delta=_percent_diff("upload"),
         )
     with col3:
         st.metric(
             label="Latency",
             value=f"{latest.get('latency', 0):.2f} ms",
+            delta=_percent_diff("latency"),
         )
     with col4:
         st.metric(
             label="Jitter",
             value=f"{latest.get('jitter', 0):.2f} ms",
+            delta=_percent_diff("jitter"),
         )
 
     st.caption(
         "Values are averaged over the last complete test run, which typically"
         " consists of 5 individual measurements."
+        " Percent differences compare against the previous test run when available."
     )
 
     # Show last 5 measurements in an accordion
     with st.expander("View individual measurements from this test run"):
-        last_5_df = df.iloc[-5:].copy()
+        last_5_df = latest_run.copy()
         last_5_df["timestamp"] = last_5_df["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
         # Select all available columns
