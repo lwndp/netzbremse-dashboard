@@ -405,12 +405,14 @@ else:
     )
 
     # Show warning if not all 24 hours have data
-    if missing_hours > 0:
-        hours_with_data = 24 - missing_hours
+    if missing_hours:
+        hours_with_data = 24 - len(missing_hours)
+        missing_hours_str = ", ".join(f"{h:02d}" for h in missing_hours)
         st.warning(
             "⚠️ Not enough data available. "
-            "Select a wider date range or wait for more"
-            "data to achieve complete 24-hour coverage."
+            "Select a wider date range or wait for more data to achieve complete "
+            "24-hour coverage."
+            f" Missing hours (0–23): {missing_hours_str}."
         )
 
 st.markdown("---")

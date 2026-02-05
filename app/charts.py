@@ -420,21 +420,21 @@ def render_24h_section(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
-) -> tuple[alt.Chart, alt.Chart, int]:
+) -> tuple[alt.Chart, alt.Chart, list[int]]:
     """
     Render the 24-hour summary section charts.
 
     Returns:
-        Tuple of (median_band_chart, endpoint_lines_chart, missing_hours_count)
+        Tuple of (median_band_chart, endpoint_lines_chart, missing_hours)
     """
     # Calculate missing hours
     if df.empty:
-        missing_hours = 24
+        missing_hours = list(range(24))
     else:
         df_copy = df.copy()
         df_copy["hour"] = df_copy["timestamp"].dt.hour
         present_hours = set(df_copy["hour"].unique())
-        missing_hours = 24 - len(present_hours)
+        missing_hours = [h for h in range(24) if h not in present_hours]
 
     median_chart = create_24h_median_band_chart(
         df=df,
