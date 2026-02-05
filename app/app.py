@@ -13,6 +13,7 @@ from charts import render_24h_section, render_longterm_section
 from components import render_header, render_latest_summary
 from data_loader import (
     DATA_DIR,
+    DEFAULT_METRIC,
     METRICS,
     REFRESH_INTERVAL_SECONDS,
     aggregate_to_intervals,
@@ -40,6 +41,23 @@ DEFAULT_DATE_RANGE_DAYS = 3
 
 # KPI options for the dropdown
 KPI_OPTIONS = {key: f"{info['name']} ({info['unit']})" for key, info in METRICS.items()}
+
+# Resolve default metric from env var (with validation and case-insensitive matching)
+_metric_key_map = {key.lower(): key for key in METRICS.keys()}
+if not DEFAULT_METRIC:
+    resolved_default_metric = "download"
+elif DEFAULT_METRIC in METRICS:
+    resolved_default_metric = DEFAULT_METRIC
+elif DEFAULT_METRIC.lower() in _metric_key_map:
+    resolved_default_metric = _metric_key_map[DEFAULT_METRIC.lower()]
+else:
+    resolved_default_metric = "download"
+    logger.error(
+        "Invalid DEFAULT_METRIC '%s'. Falling back to '%s'. Valid options: %s",
+        DEFAULT_METRIC,
+        resolved_default_metric,
+        ", ".join(METRICS.keys()),
+    )
 
 # Page configuration
 st.set_page_config(
@@ -153,7 +171,7 @@ if not df.empty:
 
     # Initialize session state for applied controls (only on first run)
     if "applied_kpi" not in st.session_state:
-        st.session_state.applied_kpi = "download"
+        st.session_state.applied_kpi = resolved_default_metric
         st.session_state.applied_start_date = default_start.date()
         st.session_state.applied_start_time = default_start.time().replace(
             second=0, microsecond=0

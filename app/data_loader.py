@@ -33,6 +33,7 @@ if not logger.handlers:
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 REFRESH_INTERVAL_SECONDS = int(os.environ.get("REFRESH_INTERVAL_SECONDS", "3600"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+DEFAULT_METRIC = os.environ.get("DEFAULT_METRIC")
 
 # Apply configured log level
 logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
