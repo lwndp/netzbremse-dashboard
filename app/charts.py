@@ -220,6 +220,7 @@ def create_24h_median_band_chart(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
+    weekday_filter: str | None = None,
     height: int = 300,
 ) -> alt.Chart:
     """
@@ -234,8 +235,17 @@ def create_24h_median_band_chart(
             .encode(text=alt.value("No data available"))
         )
 
-    # Extract hour of day
     df = df.copy()
+    if weekday_filter:
+        df = df[df["timestamp"].dt.day_name() == weekday_filter]
+        if df.empty:
+            return (
+                alt.Chart(pd.DataFrame())
+                .mark_text()
+                .encode(text=alt.value("No data available"))
+            )
+
+    # Extract hour of day
     df["hour"] = df["timestamp"].dt.hour
 
     # Group by hour and calculate statistics
@@ -298,7 +308,7 @@ def create_24h_median_band_chart(
         alt.Chart(stats_df)
         .mark_circle(
             color=BRAND_COLOR,
-            size=40,
+            size=25,
         )
         .encode(
             x=alt.X("hour:O"),
@@ -317,6 +327,7 @@ def create_24h_endpoint_lines_chart(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
+    weekday_filter: str | None = None,
     height: int = 300,
 ) -> alt.Chart:
     """
@@ -331,8 +342,17 @@ def create_24h_endpoint_lines_chart(
             .encode(text=alt.value("No data available"))
         )
 
-    # Extract hour of day
     df = df.copy()
+    if weekday_filter:
+        df = df[df["timestamp"].dt.day_name() == weekday_filter]
+        if df.empty:
+            return (
+                alt.Chart(pd.DataFrame())
+                .mark_text()
+                .encode(text=alt.value("No data available"))
+            )
+
+    # Extract hour of day
     df["hour"] = df["timestamp"].dt.hour
 
     # Group by hour and endpoint, then shorten endpoint names
@@ -420,6 +440,7 @@ def render_24h_section(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
+    weekday_filter: str | None = None,
 ) -> tuple[alt.Chart, alt.Chart, list[int]]:
     """
     Render the 24-hour summary section charts.
@@ -432,6 +453,8 @@ def render_24h_section(
         missing_hours = list(range(24))
     else:
         df_copy = df.copy()
+        if weekday_filter:
+            df_copy = df_copy[df_copy["timestamp"].dt.day_name() == weekday_filter]
         df_copy["hour"] = df_copy["timestamp"].dt.hour
         present_hours = set(df_copy["hour"].unique())
         missing_hours = [h for h in range(24) if h not in present_hours]
@@ -441,6 +464,7 @@ def render_24h_section(
         metric_key=metric_key,
         metric_name=metric_name,
         metric_unit=metric_unit,
+        weekday_filter=weekday_filter,
         height=350,
     )
 
@@ -449,6 +473,7 @@ def render_24h_section(
         metric_key=metric_key,
         metric_name=metric_name,
         metric_unit=metric_unit,
+        weekday_filter=weekday_filter,
         height=350,
     )
 

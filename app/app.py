@@ -399,6 +399,34 @@ st.caption(
     "typical performance patterns throughout the day."
 )
 
+weekday_order = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
+weekday_options = ["All days"]
+if not aggregated_chart_df.empty:
+    present_weekdays = (
+        aggregated_chart_df["timestamp"].dt.day_name().dropna().unique().tolist()
+    )
+    weekday_options.extend(
+        [day for day in weekday_order if day in set(present_weekdays)]
+    )
+
+weekday_col, _ = st.columns([1, 5])
+with weekday_col:
+    selected_weekday = st.selectbox(
+        "Weekday",
+        options=weekday_options,
+        index=0,
+        help="Filter the 24-hour pattern to a single weekday",
+    )
+weekday_filter = None if selected_weekday == "All days" else selected_weekday
+
 if aggregated_chart_df.empty:
     st.warning("No data available for the selected date range.")
 else:
@@ -408,6 +436,7 @@ else:
         metric_key=applied_kpi,
         metric_name=metric_name,
         metric_unit=metric_unit,
+        weekday_filter=weekday_filter,
     )
 
     # Display in two columns
