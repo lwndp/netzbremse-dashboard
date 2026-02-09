@@ -10,6 +10,7 @@ dependencies = [
     "streamlit-autorefresh>=1.0.1",
     "watchdog>=6.0.0",
     "python-dotenv>=1.2.1",
+    "orjson>=3.11.7",
 ]
 
 [dependency-groups]

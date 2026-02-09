@@ -277,7 +277,7 @@ if not df.empty:
     chart_df = df[
         (df["timestamp"] >= chart_start_datetime)
         & (df["timestamp"] <= chart_end_datetime)
-    ].copy()
+    ]
 
     st.sidebar.caption(
         f"Showing {len(chart_df)} measurements from "
@@ -312,23 +312,18 @@ if not df.empty:
     # CSV Download button at bottom of sidebar
     st.sidebar.markdown("---")
     st.sidebar.subheader("Export Data")
-    import io
 
-    # Prepare export data with clear timezone in column name
-    export_df = df.copy()
-    export_df = export_df.rename(columns={"timestamp": "timestamp_Europe_Berlin"})
-    # Format timestamp as ISO 8601 with timezone offset for clarity
-    export_df["timestamp_Europe_Berlin"] = export_df[
-        "timestamp_Europe_Berlin"
-    ].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
-
-    csv_buffer = io.StringIO()
-    export_df.to_csv(csv_buffer, index=False)
-    csv_data = csv_buffer.getvalue()
+    @st.cache_data(show_spinner=False)
+    def _build_csv(dataframe) -> str:
+        export_df = dataframe.rename(columns={"timestamp": "timestamp_Europe_Berlin"})
+        export_df["timestamp_Europe_Berlin"] = export_df[
+            "timestamp_Europe_Berlin"
+        ].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+        return export_df.to_csv(index=False)
 
     st.sidebar.download_button(
         label="📥 Download as CSV",
-        data=csv_data,
+        data=_build_csv(df),
         file_name="speedtest_data.csv",
         mime="text/csv",
         help="Download data as CSV (timestamps in Europe/Berlin timezone)",

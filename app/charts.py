@@ -170,7 +170,11 @@ def create_endpoint_lines_chart(
 
     # Group by timestamp and endpoint, then shorten endpoint names
     grouped_df = df.groupby(["timestamp", "endpoint"])[metric_key].mean().reset_index()
-    grouped_df["endpoint"] = grouped_df["endpoint"].apply(_shorten_endpoint)
+    endpoint_map = {
+        endpoint: _shorten_endpoint(endpoint)
+        for endpoint in grouped_df["endpoint"].unique()
+    }
+    grouped_df["endpoint"] = grouped_df["endpoint"].map(endpoint_map)
 
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
@@ -235,7 +239,6 @@ def create_24h_median_band_chart(
             .encode(text=alt.value("No data available"))
         )
 
-    df = df.copy()
     if weekday_filter:
         df = df[df["timestamp"].dt.day_name() == weekday_filter]
         if df.empty:
@@ -246,7 +249,7 @@ def create_24h_median_band_chart(
             )
 
     # Extract hour of day
-    df["hour"] = df["timestamp"].dt.hour
+    df = df.assign(hour=df["timestamp"].dt.hour)
 
     # Group by hour and calculate statistics
     stats_df = (
@@ -342,7 +345,6 @@ def create_24h_endpoint_lines_chart(
             .encode(text=alt.value("No data available"))
         )
 
-    df = df.copy()
     if weekday_filter:
         df = df[df["timestamp"].dt.day_name() == weekday_filter]
         if df.empty:
@@ -353,11 +355,15 @@ def create_24h_endpoint_lines_chart(
             )
 
     # Extract hour of day
-    df["hour"] = df["timestamp"].dt.hour
+    df = df.assign(hour=df["timestamp"].dt.hour)
 
     # Group by hour and endpoint, then shorten endpoint names
     grouped_df = df.groupby(["hour", "endpoint"])[metric_key].mean().reset_index()
-    grouped_df["endpoint"] = grouped_df["endpoint"].apply(_shorten_endpoint)
+    endpoint_map = {
+        endpoint: _shorten_endpoint(endpoint)
+        for endpoint in grouped_df["endpoint"].unique()
+    }
+    grouped_df["endpoint"] = grouped_df["endpoint"].map(endpoint_map)
 
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
@@ -452,11 +458,13 @@ def render_24h_section(
     if df.empty:
         missing_hours = list(range(24))
     else:
-        df_copy = df.copy()
-        if weekday_filter:
-            df_copy = df_copy[df_copy["timestamp"].dt.day_name() == weekday_filter]
-        df_copy["hour"] = df_copy["timestamp"].dt.hour
-        present_hours = set(df_copy["hour"].unique())
+        df_view = (
+            df[df["timestamp"].dt.day_name() == weekday_filter]
+            if weekday_filter
+            else df
+        )
+        df_view = df_view.assign(hour=df_view["timestamp"].dt.hour)
+        present_hours = set(df_view["hour"].unique())
         missing_hours = [h for h in range(24) if h not in present_hours]
 
     median_chart = create_24h_median_band_chart(

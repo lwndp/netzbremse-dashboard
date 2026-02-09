@@ -15,6 +15,15 @@ from typing import Optional
 import pandas as pd
 import streamlit as st
 
+try:
+    import orjson
+
+    _JSON_LOADS = orjson.loads
+    _USE_ORJSON = True
+except Exception:
+    _JSON_LOADS = json.loads
+    _USE_ORJSON = False
+
 # Configure module logger
 logger = logging.getLogger(__name__)
 
@@ -93,14 +102,18 @@ METRICS = {
 }
 
 
+_TIMESTAMP_RE = re.compile(
+    r"speedtest-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.json"
+)
+
+
 def parse_timestamp_from_filename(filename: str) -> Optional[datetime]:
     """
     Extract timestamp from filename like 'speedtest-2024-01-15T10-30-00-000Z.json'.
 
     The timestamp format is ISO 8601 with colons/dots replaced by hyphens.
     """
-    pattern = r"speedtest-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.json"
-    match = re.match(pattern, filename)
+    match = _TIMESTAMP_RE.match(filename)
     if not match:
         return None
 
@@ -135,8 +148,12 @@ def load_single_file(filepath: Path) -> Optional[dict]:
     Returns None if file is corrupt or missing required fields.
     """
     try:
-        with open(filepath, "r") as f:
-            data = json.load(f)
+        if _USE_ORJSON:
+            with open(filepath, "rb") as f:
+                data = _JSON_LOADS(f.read())
+        else:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = _JSON_LOADS(f.read())
 
         # Filter out failed measurements
         if not data.get("success", False):
@@ -361,8 +378,7 @@ def aggregate_to_intervals(
         return df
 
     start_time = time.perf_counter()
-    df = df.copy()
-    df["interval"] = df["timestamp"].dt.floor(f"{interval_minutes}min")
+    df = df.assign(interval=df["timestamp"].dt.floor(f"{interval_minutes}min"))
 
     metric_cols = [col for col in df.columns if col in METRICS]
 
