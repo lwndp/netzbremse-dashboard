@@ -74,12 +74,14 @@ def render_latest_summary(df: pd.DataFrame, run_size: int = 5):
             label="Latency",
             value=f"{latest.get('latency', 0):.2f} ms",
             delta=_percent_diff("latency"),
+            delta_color="inverse",
         )
     with col4:
         st.metric(
             label="Jitter",
             value=f"{latest.get('jitter', 0):.2f} ms",
             delta=_percent_diff("jitter"),
+            delta_color="inverse",
         )
 
     st.caption(
