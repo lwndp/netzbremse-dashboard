@@ -403,24 +403,22 @@ weekday_order = [
     "Saturday",
     "Sunday",
 ]
-weekday_options = ["All days"]
+weekday_options = []
 if not aggregated_chart_df.empty:
     present_weekdays = (
         aggregated_chart_df["timestamp"].dt.day_name().dropna().unique().tolist()
     )
-    weekday_options.extend(
-        [day for day in weekday_order if day in set(present_weekdays)]
-    )
+    weekday_options = [day for day in weekday_order if day in set(present_weekdays)]
 
 weekday_col, _ = st.columns([1, 5])
 with weekday_col:
-    selected_weekday = st.selectbox(
-        "Weekday",
+    selected_weekdays = st.multiselect(
+        "Weekdays",
         options=weekday_options,
-        index=0,
-        help="Filter the 24-hour pattern to a single weekday",
+        default=weekday_options,
+        help="Filter the 24-hour pattern to one or more weekdays",
     )
-weekday_filter = None if selected_weekday == "All days" else selected_weekday
+weekday_filter = selected_weekdays or None
 
 if aggregated_chart_df.empty:
     st.warning("No data available for the selected date range.")

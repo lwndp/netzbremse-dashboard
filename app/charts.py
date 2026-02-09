@@ -224,7 +224,7 @@ def create_24h_median_band_chart(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
-    weekday_filter: str | None = None,
+    weekday_filter: list[str] | str | None = None,
     height: int = 300,
 ) -> alt.Chart:
     """
@@ -240,7 +240,12 @@ def create_24h_median_band_chart(
         )
 
     if weekday_filter:
-        df = df[df["timestamp"].dt.day_name() == weekday_filter]
+        weekdays = (
+            [weekday_filter]
+            if isinstance(weekday_filter, str)
+            else list(weekday_filter)
+        )
+        df = df[df["timestamp"].dt.day_name().isin(weekdays)]
         if df.empty:
             return (
                 alt.Chart(pd.DataFrame())
@@ -330,7 +335,7 @@ def create_24h_endpoint_lines_chart(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
-    weekday_filter: str | None = None,
+    weekday_filter: list[str] | str | None = None,
     height: int = 300,
 ) -> alt.Chart:
     """
@@ -346,7 +351,12 @@ def create_24h_endpoint_lines_chart(
         )
 
     if weekday_filter:
-        df = df[df["timestamp"].dt.day_name() == weekday_filter]
+        weekdays = (
+            [weekday_filter]
+            if isinstance(weekday_filter, str)
+            else list(weekday_filter)
+        )
+        df = df[df["timestamp"].dt.day_name().isin(weekdays)]
         if df.empty:
             return (
                 alt.Chart(pd.DataFrame())
@@ -446,7 +456,7 @@ def render_24h_section(
     metric_key: str,
     metric_name: str,
     metric_unit: str,
-    weekday_filter: str | None = None,
+    weekday_filter: list[str] | str | None = None,
 ) -> tuple[alt.Chart, alt.Chart, list[int]]:
     """
     Render the 24-hour summary section charts.
@@ -458,11 +468,15 @@ def render_24h_section(
     if df.empty:
         missing_hours = list(range(24))
     else:
-        df_view = (
-            df[df["timestamp"].dt.day_name() == weekday_filter]
-            if weekday_filter
-            else df
-        )
+        if weekday_filter:
+            weekdays = (
+                [weekday_filter]
+                if isinstance(weekday_filter, str)
+                else list(weekday_filter)
+            )
+            df_view = df[df["timestamp"].dt.day_name().isin(weekdays)]
+        else:
+            df_view = df
         df_view = df_view.assign(hour=df_view["timestamp"].dt.hour)
         present_hours = set(df_view["hour"].unique())
         missing_hours = [h for h in range(24) if h not in present_hours]
