@@ -415,14 +415,12 @@ if not aggregated_chart_df.empty:
     )
     weekday_options = [day for day in weekday_order if day in set(present_weekdays)]
 
-weekday_col, _ = st.columns([1, 5])
-with weekday_col:
-    selected_weekdays = st.multiselect(
-        "Weekdays",
-        options=weekday_options,
-        default=weekday_options,
-        help="Filter the 24-hour pattern to one or more weekdays",
-    )
+selected_weekdays = st.multiselect(
+    "Weekdays",
+    options=weekday_options,
+    default=weekday_options,
+    help="Filter the 24-hour pattern to one or more weekdays",
+)
 weekday_filter = selected_weekdays or None
 
 if aggregated_chart_df.empty:
