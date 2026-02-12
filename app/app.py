@@ -393,6 +393,11 @@ st.caption(
     "Aggregated by hour of day across the selected date range to show "
     "typical performance patterns throughout the day."
 )
+st.caption(
+    "**Note:** This section depends on the date range filter. "
+    "If you select less than one full week in the sidebar, you might "
+    "not be able to select all weekdays in the filter below."
+)
 
 weekday_order = [
     "Monday",
