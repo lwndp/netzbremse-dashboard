@@ -3,6 +3,7 @@ FROM python:3.12-slim-bookworm
 ARG VERSION=latest
 ARG VCS_REF=unknown
 ARG BUILD_DATE=
+ARG CPU_OPTIMIZATION=baseline
 
 LABEL org.opencontainers.image.title="netzbremse-dashboard" \
     org.opencontainers.image.description="Streamlit dashboard for Netzbremse speedtest results" \
@@ -27,8 +28,13 @@ ENV PATH="/root/.local/bin:$PATH"
 COPY pyproject.toml uv.lock ./
 
 # Install only runtime deps (no dev), then remove uv to save space
+# Set CPU optimizations based on build arg
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev && \
+    if [ "$CPU_OPTIMIZATION" = "baseline" ]; then \
+      NPY_DISABLE_CPU_FEATURES=SSE2,AVX,AVX2,AVX512F,AVX512CD uv sync --frozen --no-dev; \
+    else \
+      uv sync --frozen --no-dev; \
+    fi && \
     rm -rf /root/.local/bin/uv
 
 COPY . .

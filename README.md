@@ -18,7 +18,17 @@ You can also build the image yourself:
 docker compose build
 ```
 
-or use my prebuilt image: `ghcr.io/lwndp/netzbremse-dashboard:latest`
+or use my prebuilt image. Two variants are available:
+
+- **`ghcr.io/lwndp/netzbremse-dashboard:latest-optimized`** (default) — High-performance NumPy build with CPU optimizations. Recommended for modern systems (typically 2015+).
+- **`ghcr.io/lwndp/netzbremse-dashboard:latest-baseline`** — Universal build with baseline CPU support. Use this if you encounter NumPy errors like `RuntimeError: NumPy was built with baseline optimizations` on older hardware.
+
+In `docker-compose.yml`, change the image tag if needed:
+```yaml
+services:
+  netzbremse-dashboard:
+    image: ghcr.io/lwndp/netzbremse-dashboard:latest-baseline  # For older CPUs
+```
 
 ## Security 
 
