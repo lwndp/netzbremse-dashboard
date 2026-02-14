@@ -16,16 +16,6 @@ jobs:
       contents: read
       packages: write
 
-    strategy:
-      matrix:
-        variant:
-          - {
-              name: baseline,
-              cpu_optimization: baseline,
-              tag_suffix: "-baseline",
-            }
-          - { name: optimized, cpu_optimization: optimized, tag_suffix: "" }
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,10 +39,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest${{ matrix.variant.tag_suffix }},enable={{is_default_branch}}
-            type=ref,event=branch,suffix=${{ matrix.variant.tag_suffix }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image (${{ matrix.variant.name }})
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -60,5 +51,5 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            CPU_OPTIMIZATION=${{ matrix.variant.cpu_optimization }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
