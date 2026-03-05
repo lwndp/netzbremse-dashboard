@@ -315,7 +315,11 @@ def load_all_data() -> pd.DataFrame:
     # Try to load existing cache
     cached_df = _load_cache(cache_path)
 
-    if cached_df is not None and not cached_df.empty:
+    if (
+        cached_df is not None
+        and not cached_df.empty
+        and "source_file" in cached_df.columns
+    ):
         # Find files not yet in cache
         cached_files = set(cached_df["source_file"].unique())
         new_files = [
@@ -328,7 +332,7 @@ def load_all_data() -> pd.DataFrame:
             logger.info(
                 "Cache is current, no new files to load (total: %.1f ms)", elapsed_ms
             )
-            return cached_df.drop(columns=["source_file"]).sort_values(
+            return cached_df.drop(columns=["source_file"], errors="ignore").sort_values(
                 "timestamp", ascending=True
             )
 
@@ -352,6 +356,10 @@ def load_all_data() -> pd.DataFrame:
         else:
             df = cached_df
     else:
+        if cached_df is not None and not cached_df.empty:
+            logger.warning(
+                "Cache schema mismatch: missing 'source_file' column. Rebuilding cache."
+            )
         # No cache, load all files
         logger.info("Building cache from scratch (cold start)")
         all_filepaths = list(all_json_files.values())
@@ -373,7 +381,7 @@ def load_all_data() -> pd.DataFrame:
     )
 
     # Return without source_file column (internal tracking only)
-    return df.drop(columns=["source_file"])
+    return df.drop(columns=["source_file"], errors="ignore")
 
 
 def get_latest_measurements(df: pd.DataFrame, count: int = 5) -> pd.DataFrame:
