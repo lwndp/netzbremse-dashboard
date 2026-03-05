@@ -129,6 +129,13 @@ def convert_timezone(df_input):
     return df_out
 
 
+def as_display_timezone(dt: datetime) -> datetime:
+    """Normalize datetime to display timezone while preserving tz-aware values."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=DISPLAY_TIMEZONE)
+    return dt.astimezone(DISPLAY_TIMEZONE)
+
+
 # Convert to Europe/Berlin timezone for all data
 df = convert_timezone(df_utc)
 
@@ -240,8 +247,8 @@ if not df.empty:
     input_end_datetime = datetime.combine(end_date, end_time, tzinfo=DISPLAY_TIMEZONE)
 
     # Clamp datetime values to available data range
-    min_dt_tz = min_datetime.replace(tzinfo=DISPLAY_TIMEZONE)
-    max_dt_tz = max_datetime.replace(tzinfo=DISPLAY_TIMEZONE)
+    min_dt_tz = as_display_timezone(min_datetime)
+    max_dt_tz = as_display_timezone(max_datetime)
     clamped_start = max(input_start_datetime, min_dt_tz)
     clamped_end = min(input_end_datetime, max_dt_tz)
 
