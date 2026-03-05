@@ -19,6 +19,7 @@ from data_loader import (
     aggregate_to_intervals,
     load_all_data,
 )
+from streamlit_autorefresh import st_autorefresh
 
 # Configure app logger
 logger = logging.getLogger(__name__)
@@ -305,6 +306,11 @@ if not df.empty:
 # Refresh info
 st.sidebar.markdown("---")
 st.sidebar.subheader("Auto-Refresh")
+st_autorefresh(
+    interval=REFRESH_INTERVAL_SECONDS * 1000,
+    key="dashboard_autorefresh",
+)
+
 refresh_note = (
     f"{REFRESH_INTERVAL_SECONDS // 60} minutes"
     if REFRESH_INTERVAL_SECONDS >= 60
