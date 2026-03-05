@@ -181,11 +181,22 @@ if not df.empty:
         )
 
     # KPI Selector
+    kpi_keys = list(KPI_OPTIONS.keys())
+    applied_kpi_for_input = st.session_state.applied_kpi
+    if applied_kpi_for_input not in KPI_OPTIONS:
+        logger.warning(
+            "Session KPI '%s' is no longer valid. Falling back to '%s'.",
+            applied_kpi_for_input,
+            resolved_default_metric,
+        )
+        applied_kpi_for_input = resolved_default_metric
+        st.session_state.applied_kpi = resolved_default_metric
+
     selected_kpi = st.sidebar.selectbox(
         "Select KPI",
-        options=list(KPI_OPTIONS.keys()),
+        options=kpi_keys,
         format_func=lambda x: KPI_OPTIONS[x],
-        index=list(KPI_OPTIONS.keys()).index(st.session_state.applied_kpi),
+        index=kpi_keys.index(applied_kpi_for_input),
         help="Choose the metric to display in all charts",
         key="input_kpi",
     )
