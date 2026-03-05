@@ -80,27 +80,52 @@ app/
 ├── charts.py           # Chart generation (Altair)
 ├── components.py       # Reusable UI components
 └── data_loader.py      # Data loading & caching
+tests/
+├── conftest.py         # Pytest fixtures (Streamlit stub)
+├── test_charts.py      # Unit tests for charts.py
+└── test_data_loader.py # Unit tests for data_loader.py
 ```
+
+### Common tasks
+
+A `Makefile` is provided for the most common development tasks:
+
+| Command       | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `make test`   | Run the unit test suite                        |
+| `make lint`   | Check code style and quality (non-destructive) |
+| `make format` | Auto-format code with Black and isort          |
+
+### Tests
+
+The test suite covers the core data loading and chart logic without requiring a running Streamlit server.
+
+```bash
+make test
+# or: uv run pytest tests/ -v
+```
+
+Pre-commit hooks run tests automatically on every commit that touches `app/` or `tests/`.
 
 ### Code Quality
 
-This project uses **pre-commit hooks** to ensure code quality:
+Pre-commit hooks enforce code quality on every commit:
 
-- **Black**: Automatic code formatting
-- **Ruff**: Linting and code quality checks
+- **Ruff**: Linting
+- **Black**: Formatting
+- **isort**: Import ordering
+- **pytest**: Unit tests (only when `app/` or `tests/` files are staged)
 
-The hooks run automatically on every commit. To manually check before committing:
+Check manually before committing:
 
 ```bash
-uv run ruff check app/
-uv run black --check app/
+make lint
 ```
 
-To auto-fix issues:
+Auto-fix formatting issues:
 
 ```bash
-uv run ruff check --fix app/
-uv run black app/
+make format
 ```
 
 ## Contribute
