@@ -193,6 +193,7 @@ def load_single_file(filepath: Path) -> Optional[dict]:
         record = {
             "timestamp": timestamp,
             "source_file": filepath.name,  # Track which file this came from
+            "source_mtime_ns": filepath.stat().st_mtime_ns,
             "sessionID": data.get("sessionID"),
             "endpoint": data.get("endpoint"),
         }
@@ -322,11 +323,39 @@ def load_all_data() -> pd.DataFrame:
     ):
         # Find files not yet in cache
         cached_files = set(cached_df["source_file"].unique())
+        current_files = set(all_json_files.keys())
+
+        deleted_files = cached_files - current_files
         new_files = [
             fp for name, fp in all_json_files.items() if name not in cached_files
         ]
 
-        if not new_files:
+        changed_files = []
+        if "source_mtime_ns" in cached_df.columns:
+            cached_mtime = (
+                cached_df.groupby("source_file")["source_mtime_ns"].max().to_dict()
+            )
+            for name in cached_files & current_files:
+                filepath = all_json_files[name]
+                try:
+                    current_mtime = filepath.stat().st_mtime_ns
+                except OSError:
+                    changed_files.append(filepath)
+                    continue
+
+                cached_mtime_ns = cached_mtime.get(name)
+                if cached_mtime_ns is None or int(cached_mtime_ns) != current_mtime:
+                    changed_files.append(filepath)
+        else:
+            logger.info(
+                "Cache does not include source mtime metadata; "
+                "forcing one-time refresh."
+            )
+            changed_files = [
+                all_json_files[name] for name in (cached_files & current_files)
+            ]
+
+        if not new_files and not changed_files and not deleted_files:
             # Cache is up to date
             elapsed_ms = (time.perf_counter() - overall_start) * 1000
             logger.info(
@@ -337,24 +366,34 @@ def load_all_data() -> pd.DataFrame:
             )
 
         logger.info(
-            "Found %d new files since last cache (%d cached)",
+            "Cache delta: %d new, %d changed, %d deleted (%d cached)",
             len(new_files),
+            len(changed_files),
+            len(deleted_files),
             len(cached_files),
         )
 
-        # Load only new files
-        new_records = _load_json_files_parallel(new_files)
+        files_to_reload = {fp.name for fp in [*new_files, *changed_files]}
+        if deleted_files or files_to_reload:
+            kept_df = cached_df[
+                ~cached_df["source_file"].isin(deleted_files | files_to_reload)
+            ]
+        else:
+            kept_df = cached_df
 
-        if new_records:
-            new_df = pd.DataFrame(new_records)
-            df = pd.concat([cached_df, new_df], ignore_index=True)
+        # Load only new/changed files
+        delta_records = _load_json_files_parallel([*new_files, *changed_files])
+
+        if delta_records:
+            delta_df = pd.DataFrame(delta_records)
+            df = pd.concat([kept_df, delta_df], ignore_index=True)
             logger.info(
-                "Merged %d new records with %d cached records",
-                len(new_records),
-                len(cached_df),
+                "Merged %d refreshed records with %d cached records",
+                len(delta_records),
+                len(kept_df),
             )
         else:
-            df = cached_df
+            df = kept_df
     else:
         if cached_df is not None and not cached_df.empty:
             logger.warning(
