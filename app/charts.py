@@ -39,6 +39,26 @@ def _shorten_endpoint(url: str) -> str:
         return url
 
 
+def _build_endpoint_label_map(endpoints: list[str]) -> dict[str, str]:
+    """Build unique display labels for endpoints, disambiguating collisions."""
+    short_to_full: dict[str, list[str]] = {}
+    for endpoint in endpoints:
+        short_name = _shorten_endpoint(endpoint)
+        short_to_full.setdefault(short_name, []).append(endpoint)
+
+    label_map: dict[str, str] = {}
+    for short_name, full_endpoints in short_to_full.items():
+        unique_full = sorted(set(full_endpoints))
+        if len(unique_full) == 1:
+            label_map[unique_full[0]] = short_name
+            continue
+
+        for index, endpoint in enumerate(unique_full, start=1):
+            label_map[endpoint] = f"{short_name} ({index})"
+
+    return label_map
+
+
 def _get_endpoint_color_scale(endpoints: list[str]) -> alt.Scale:
     """Create a color scale for endpoints using magenta nuances."""
     n_endpoints = len(endpoints)
@@ -170,11 +190,10 @@ def create_endpoint_lines_chart(
 
     # Group by timestamp and endpoint, then shorten endpoint names
     grouped_df = df.groupby(["timestamp", "endpoint"])[metric_key].mean().reset_index()
-    endpoint_map = {
-        endpoint: _shorten_endpoint(endpoint)
-        for endpoint in grouped_df["endpoint"].unique()
-    }
+    endpoint_values = grouped_df["endpoint"].dropna().unique().tolist()
+    endpoint_map = _build_endpoint_label_map(endpoint_values)
     grouped_df["endpoint"] = grouped_df["endpoint"].map(endpoint_map)
+    grouped_df["endpoint"] = grouped_df["endpoint"].fillna("Unknown endpoint")
 
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
@@ -369,11 +388,10 @@ def create_24h_endpoint_lines_chart(
 
     # Group by hour and endpoint, then shorten endpoint names
     grouped_df = df.groupby(["hour", "endpoint"])[metric_key].mean().reset_index()
-    endpoint_map = {
-        endpoint: _shorten_endpoint(endpoint)
-        for endpoint in grouped_df["endpoint"].unique()
-    }
+    endpoint_values = grouped_df["endpoint"].dropna().unique().tolist()
+    endpoint_map = _build_endpoint_label_map(endpoint_values)
     grouped_df["endpoint"] = grouped_df["endpoint"].map(endpoint_map)
+    grouped_df["endpoint"] = grouped_df["endpoint"].fillna("Unknown endpoint")
 
     endpoints = sorted(grouped_df["endpoint"].unique().tolist())
     color_scale = _get_endpoint_color_scale(endpoints)
