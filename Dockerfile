@@ -28,7 +28,7 @@ COPY pyproject.toml uv.lock ./
 
 # Install only runtime deps (no dev), then remove uv to save space
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev && \
+    uv sync --frozen --no-dev --link-mode=copy && \
     rm -rf /root/.local/bin/uv
 
 COPY . .
