@@ -22,17 +22,33 @@ def render_latest_summary(df: pd.DataFrame, run_size: int = 5):
     df_sorted = df.sort_values("timestamp")
     run_size = min(max(run_size, 1), len(df_sorted))
 
-    # Average the last complete test run for accurate values
-    latest_run = df_sorted.iloc[-run_size:]
+    latest_run = pd.DataFrame()
+    previous_run = pd.DataFrame()
+
+    # Prefer true run grouping by sessionID when available
+    if "sessionID" in df_sorted.columns:
+        sessions_df = df_sorted.dropna(subset=["sessionID"])
+        if not sessions_df.empty:
+            session_order = sessions_df["sessionID"].drop_duplicates().tolist()
+            latest_session_id = session_order[-1]
+            latest_run = df_sorted[df_sorted["sessionID"] == latest_session_id]
+            if len(session_order) >= 2:
+                previous_session_id = session_order[-2]
+                previous_run = df_sorted[df_sorted["sessionID"] == previous_session_id]
+
+    # Fallback for datasets without sessionID
+    if latest_run.empty:
+        latest_run = df_sorted.iloc[-run_size:]
+        previous_run = (
+            df_sorted.iloc[-(run_size * 2) : -run_size]
+            if len(df_sorted) >= run_size * 2
+            else pd.DataFrame()
+        )
+
     latest = latest_run.mean(numeric_only=True)
     latest_timestamp = latest_run["timestamp"].max()
 
     # Previous run for percent difference comparison
-    previous_run = (
-        df_sorted.iloc[-(run_size * 2) : -run_size]
-        if len(df_sorted) >= run_size * 2
-        else pd.DataFrame()
-    )
     previous = (
         previous_run.mean(numeric_only=True) if not previous_run.empty else pd.Series()
     )

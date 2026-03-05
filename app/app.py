@@ -17,7 +17,6 @@ from data_loader import (
     METRICS,
     REFRESH_INTERVAL_SECONDS,
     aggregate_to_intervals,
-    get_latest_measurements,
     load_all_data,
 )
 
@@ -340,15 +339,12 @@ if df.empty:
     )
     st.stop()
 
-# Get latest measurements for summary (include previous run for comparison)
-latest_df = get_latest_measurements(df, RECENT_COUNT * 2)
-
 # Prepare chart data (always aggregated by measurement run)
 aggregated_chart_df = aggregate_to_intervals(chart_df, interval_minutes=10)
 
 # Summary section
 st.markdown("---")
-render_latest_summary(latest_df, run_size=RECENT_COUNT)
+render_latest_summary(df, run_size=RECENT_COUNT)
 
 # Get metric info for applied KPI
 metric_info = METRICS[applied_kpi]
