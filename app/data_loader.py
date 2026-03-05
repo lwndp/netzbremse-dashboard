@@ -40,7 +40,26 @@ if not logger.handlers:
 
 # Environment variables
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
-REFRESH_INTERVAL_SECONDS = int(os.environ.get("REFRESH_INTERVAL_SECONDS", "3600"))
+
+
+def _parse_refresh_interval_seconds(default_value: int = 3600) -> int:
+    """Parse refresh interval from env with validation and safe fallback."""
+    raw_value = os.environ.get("REFRESH_INTERVAL_SECONDS", str(default_value))
+    try:
+        parsed = int(raw_value)
+        if parsed < 1:
+            raise ValueError("must be >= 1")
+        return parsed
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid REFRESH_INTERVAL_SECONDS=%r. Falling back to %d seconds.",
+            raw_value,
+            default_value,
+        )
+        return default_value
+
+
+REFRESH_INTERVAL_SECONDS = _parse_refresh_interval_seconds()
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 DEFAULT_METRIC = os.environ.get("DEFAULT_METRIC")
 
