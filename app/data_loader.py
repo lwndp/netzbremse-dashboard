@@ -452,7 +452,11 @@ def aggregate_to_intervals(
     if "endpoint" in df.columns:
         # Group by both interval and endpoint to preserve endpoint info
         agg_dict = {col: "mean" for col in metric_cols}
-        agg_df = df.groupby(["interval", "endpoint"]).agg(agg_dict).reset_index()
+        agg_df = (
+            df.groupby(["interval", "endpoint"], dropna=False)
+            .agg(agg_dict)
+            .reset_index()
+        )
         agg_df = agg_df.rename(columns={"interval": "timestamp"})
     else:
         # Fallback: group only by interval
