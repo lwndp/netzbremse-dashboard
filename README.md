@@ -66,8 +66,8 @@ uv run streamlit run app/app.py
 
 #### Configuration
 
-- `DATA_DIR`: Path to directory with speedtest JSON files (default: `/data`); Note: This applies only to
-- `REFRESH_INTERVAL_SECONDS`: Data cache TTL (default: `3600`)
+- `DATA_DIR`: Path to directory with speedtest JSON files (default: `/data`).
+- `REFRESH_INTERVAL_SECONDS`: Auto-refresh interval in seconds and data cache TTL (default: `3600`). Must be a positive integer; invalid values fall back to `3600`.
 - `DEFAULT_METRIC`: Default KPI key for the dropdown (default: `download`). Valid keys: `download`, `upload`, `latency`, `jitter`, `downLoadedLatency`, `downLoadedJitter`, `upLoadedLatency`, `upLoadedJitter`.
 
 You can adjust the application port in `.streamlit/config.toml`. Note that this will also apply to the container build and therefore requires adjustments of your `docker-compose.yaml`.
