@@ -300,3 +300,28 @@ class TestAggregateToIntervals:
         result = aggregate_to_intervals(df, interval_minutes=60)
         # 10:00 and 10:30 → same 60-min bucket; 11:00 → next bucket
         assert len(result) == 2
+
+    def test_dst_fall_back_repeated_hour(self):
+        timestamps = pd.to_datetime(
+            ["2026-10-25 00:52", "2026-10-25 00:58", "2026-10-25 01:53"], utc=True
+        ).tz_convert("Europe/Berlin")
+        df = pd.DataFrame({"timestamp": timestamps, "download": [100.0, 200.0, 50.0]})
+        result = aggregate_to_intervals(df, interval_minutes=10)
+        # 02:52/02:58 CEST → 02:50+02:00; 02:53 CET → 02:50+01:00 (distinct instants)
+        assert list(result["timestamp"]) == [
+            pd.Timestamp("2026-10-25 02:50+02:00").tz_convert("Europe/Berlin"),
+            pd.Timestamp("2026-10-25 02:50+01:00").tz_convert("Europe/Berlin"),
+        ]
+        assert list(result["download"]) == pytest.approx([150.0, 50.0])
+
+    def test_dst_spring_forward(self):
+        timestamps = pd.to_datetime(
+            ["2026-03-29 00:55", "2026-03-29 01:05"], utc=True
+        ).tz_convert("Europe/Berlin")
+        df = pd.DataFrame({"timestamp": timestamps, "download": [1.0, 2.0]})
+        result = aggregate_to_intervals(df, interval_minutes=10)
+        # 01:55 CET → 01:50+01:00; 03:05 CEST → 03:00+02:00
+        assert list(result["timestamp"].dt.strftime("%H:%M%z")) == [
+            "01:50+0100",
+            "03:00+0200",
+        ]

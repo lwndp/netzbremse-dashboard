@@ -444,7 +444,14 @@ def aggregate_to_intervals(
         return df
 
     start_time = time.perf_counter()
-    df = df.assign(interval=df["timestamp"].dt.floor(f"{interval_minutes}min"))
+    freq = f"{interval_minutes}min"
+    ts = df["timestamp"]
+    if ts.dt.tz is not None:
+        # Floor in UTC: wall-clock flooring is ambiguous during DST fall-back
+        interval = ts.dt.tz_convert("UTC").dt.floor(freq).dt.tz_convert(ts.dt.tz)
+    else:
+        interval = ts.dt.floor(freq)
+    df = df.assign(interval=interval)
 
     metric_cols = [col for col in df.columns if col in METRICS]
 
